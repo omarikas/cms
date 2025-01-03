@@ -1,10 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:ntlm/ntlm.dart';
-
 import 'package:flutter_pdfview/flutter_pdfview.dart';
-
 import 'package:html/parser.dart' as parser;
+import 'package:html/dom.dart' as html_dom;
 
 void main() {
   runApp(const MyApp());
@@ -21,7 +20,63 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const LoginScreen(),
+    );
+  }
+}
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  void _login() {
+    final username = _usernameController.text;
+    final password = _passwordController.text;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MyHomePage(
+          title: 'Flutter Demo Home Page',
+          username: username,
+          password: password,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Login')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _usernameController,
+              decoration: InputDecoration(labelText: 'Username'),
+            ),
+            TextField(
+              controller: _passwordController,
+              decoration: InputDecoration(labelText: 'Password'),
+              obscureText: true,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _login,
+              child: Text('Login'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -35,17 +90,20 @@ class Course {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({super.key, required this.title, required this.username, required this.password});
 
   final String title;
+  final String username;
+  final String password;
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<Course> _counter = [];
+  List<List<Course>> _counter = [];
   bool _isLoading = false;
+  String season = "";
 
   @override
   void initState() {
@@ -60,26 +118,44 @@ class _MyHomePageState extends State<MyHomePage> {
 
     try {
       NTLMClient client = NTLMClient(
-        username: "omar.sayed",
-        password: "?",
+        username: widget.username,
+        password: widget.password,
       );
-      final response = await client.get(Uri.parse("https://cms.guc.edu.eg/apps/student/HomePageStn.aspx"));
+      final response = await client.get(Uri.parse("https://cms.guc.edu.eg/apps/student/ViewAllCourseStn"));
 
       setState(() {
         final document = parser.parse(response.body);
-        final table = document.getElementById('ContentPlaceHolderright_ContentPlaceHoldercontent_GridViewcourses');
-        if (table == null) return;
+        int id = 0;
 
-        final rows = table.getElementsByTagName('tr');
-        for (var i = 1; i < rows.length; i++) {
-          final cells = rows[i].getElementsByTagName('td');
-          if (cells.length >= 4) {
-            final name = cells[1].text.trim();
-            final status = cells[2].text.trim();
-            final season = cells[3].text.trim();
+        final regex = RegExp(r'Season\s*:\s*\d+');
+        final matches = regex.allMatches(response.body);
+        for (final match in matches) {
+          print(match.group(0));
+        }
 
-            _counter.add(Course(name: name, status: status, season: season));
+        html_dom.Element? table = document.getElementById('ContentPlaceHolderright_ContentPlaceHoldercontent_r1_GridView1_0');
+
+        while (table != null) {
+          List<Course> c = [];
+          final rows = table.getElementsByTagName('tr');
+
+          _counter.add([Course(name: matches.elementAtOrNull(id)!.group(0).toString(), status: '', season: '')]);
+
+          for (var i = 1; i < rows.length; i++) {
+            final cells = rows[i].getElementsByTagName('td');
+            if (cells.length >= 4) {
+              final name = cells[1].text.trim();
+              final status = cells[2].text.trim();
+              final seas = cells[3].text.trim();
+
+              c.add(Course(name: name, status: status, season: matches.elementAtOrNull(id)!.group(0).toString().split(":")[1]));
+            }
           }
+          _counter.add(c);
+          id++;
+
+          print(id);
+          table = document.getElementById('ContentPlaceHolderright_ContentPlaceHoldercontent_r1_GridView1_' + id.toString());
         }
       });
     } catch (error) {
@@ -109,8 +185,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         DataColumn(label: Expanded(child: Text("Status", textAlign: TextAlign.center))),
                         DataColumn(label: Expanded(child: Text("Season", textAlign: TextAlign.center))),
                       ],
-                      rows: _counter
-                          .map(
+                      rows: _counter.expand((courses) => courses).map(
                             (course) => DataRow(
                               cells: [
                                 DataCell(Center(child: Text(course.name))),
@@ -124,14 +199,16 @@ class _MyHomePageState extends State<MyHomePage> {
                                     MaterialPageRoute(
                                       builder: (context) => CourseDetailScreen(
                                         title: extractCourseId(course.name),
+                                        season: course.season,
+                                        username: widget.username,
+                                        password: widget.password,
                                       ),
                                     ),
                                   );
                                 }
                               },
                             ),
-                          )
-                          .toList(),
+                          ).toList(),
                     ),
                   ),
                 ),
@@ -148,9 +225,12 @@ String extractCourseId(String input) {
 }
 
 class CourseDetailScreen extends StatefulWidget {
-  CourseDetailScreen({super.key, required this.title});
+  CourseDetailScreen({super.key, required this.title, required this.season, required this.username, required this.password});
 
   final String title;
+  final String season;
+  final String username;
+  final String password;
 
   @override
   State<CourseDetailScreen> createState() => CourseDetailScreenState();
@@ -160,11 +240,13 @@ class CourseDetailScreenState extends State<CourseDetailScreen> {
   late String title;
   List<WeekContent> weeks = <WeekContent>[];
   bool _isLoading = false;
+  late String season;
 
   @override
   void initState() {
     super.initState();
     title = widget.title;
+    season = widget.season;
     fetchData();
   }
 
@@ -175,10 +257,10 @@ class CourseDetailScreenState extends State<CourseDetailScreen> {
 
     try {
       NTLMClient client = NTLMClient(
-        username: "omar.sayed",
-        password: "?",
+        username: widget.username,
+        password: widget.password,
       );
-      final response = await client.get(Uri.parse('https://cms.guc.edu.eg/apps/student/CourseViewStn.aspx?id=$title&sid=64'));
+      final response = await client.get(Uri.parse('https://cms.guc.edu.eg/apps/student/CourseViewStn.aspx?id=$title&sid=$season'));
 
       setState(() {
         final document = parser.parse(response.body);
@@ -245,8 +327,8 @@ class CourseDetailScreenState extends State<CourseDetailScreen> {
                           onPressed: () async {
                             try {
                               NTLMClient client = NTLMClient(
-                                username: "omar.sayed",
-                                password: "?",
+                                username: widget.username,
+                                password: widget.password,
                               );
                               final response = await client.get(Uri.parse("https://cms.guc.edu.eg" + weekContent.downloadLink));
                               Navigator.push(

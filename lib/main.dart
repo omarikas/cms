@@ -7,6 +7,7 @@ import 'package:html/dom.dart' as html_dom;
 
 void main() {
   runApp(const MyApp());
+  
 }
 
 class MyApp extends StatelessWidget {
@@ -15,10 +16,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+       debugShowCheckedModeBanner: false, 
       title: 'Flutter Demo',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
-        useMaterial3: true,
+        useMaterial3: false,
       ),
       home: const LoginScreen(),
     );
@@ -57,8 +59,9 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       appBar: AppBar(title: Text('Login')),
       body: Padding(
+
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child:Form(child:  Column(
           children: [
             TextField(
               controller: _usernameController,
@@ -75,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Text('Login'),
             ),
           ],
-        ),
+        ),)
       ),
     );
   }
@@ -134,7 +137,27 @@ class _MyHomePageState extends State<MyHomePage> {
         }
 
         html_dom.Element? table = document.getElementById('ContentPlaceHolderright_ContentPlaceHoldercontent_r1_GridView1_0');
+          if(table==null){
+            showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Error'),
+            content: Text('Wrong user name or Password.'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
 
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+          }
         while (table != null) {
           List<Course> c = [];
           final rows = table.getElementsByTagName('tr');
@@ -159,7 +182,25 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       });
     } catch (error) {
-      print(error);
+     
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+        title: Text('Error'),
+        content: Text('Wrong user name or Password.'),
+        actions: <Widget>[
+          TextButton(
+            child: Text('OK'),
+            onPressed: () {
+          Navigator.of(context).pop(); // Close the dialog
+          Navigator.of(context).pop(); // Go back one screen
+            },
+          ),
+        ],
+          );
+        },
+      );
     } finally {
       setState(() {
         _isLoading = false;

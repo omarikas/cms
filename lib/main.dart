@@ -148,9 +148,6 @@ class _MyHomePageState extends State<MyHomePage> {
               TextButton(
                 child: Text('OK'),
                 onPressed: () {
-                  Navigator.of(context).pop();
-
-                  Navigator.of(context).pop();
                 },
               ),
             ],
@@ -188,13 +185,11 @@ class _MyHomePageState extends State<MyHomePage> {
         builder: (BuildContext context) {
           return AlertDialog(
         title: Text('Error'),
-        content: Text('Wrong user name or Password.'),
+        content: Text('Error occured.'),
         actions: <Widget>[
           TextButton(
             child: Text('OK'),
-            onPressed: () {
-          Navigator.of(context).pop(); // Close the dialog
-          Navigator.of(context).pop(); // Go back one screen
+            onPressed: () {// Go back one screen
             },
           ),
         ],
